@@ -71,7 +71,8 @@ static long time2long(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
 // DateTime implementation - ignores time zones and DST changes
 // NOTE: also ignores leap seconds, see http://en.wikipedia.org/wiki/Leap_second
 
-DateTime::DateTime (uint32_t t) {
+DateTime::DateTime (uint32_t t) {DateTime((long) t); }
+DateTime::DateTime (long t) {
   t -= SECONDS_FROM_1970_TO_2000;    // bring to 2000 timestamp from 1970
 
     ss = t % 60;
@@ -207,6 +208,22 @@ TimeSpan DateTime::operator-(const DateTime& right) {
   return TimeSpan(unixtime()-right.unixtime());
 }
 
+//from EnviroDIY_DS3231_
+void DateTime::addToString(String & str) const
+{
+    add04d(str, year());
+    str += '-';
+    add02d(str, month());
+    str += '-';
+    //add02d(str, date());
+    add02d(str, day());
+    str += ' ';
+    add02d(str, hour());
+    str += ':';
+    add02d(str, minute());
+    str += ':';
+    add02d(str, second());
+}
 ////////////////////////////////////////////////////////////////////////////////
 // TimeSpan implementation
 
