@@ -815,7 +815,7 @@ DateTime RTC_Micros::now() {
 */
 /**************************************************************************/
 ////////////////////////////////////////////////////////////////////////////////
-// RTC_PCF8563 implementation
+// RTC_PCF8523 implementation
 boolean RTC_PCF8523::begin(void) {
   Wire.begin();
   return true;
@@ -939,7 +939,150 @@ void RTC_PCF8523::calibrate(Pcf8523OffsetMode mode, int8_t offset) {
   Wire.endTransmission();
 }
 
+/**************************************************************************/
+////////////////////////////////////////////////////////////////////////////////
+// RTC_PCF2127 implementation
+boolean RTC_PCF2127::begin(uint8_t address) {
 
+	_deviceAddr = address;
+  Wire.begin();
+  /*FUT: Need to Check if running,
+   and if not CLKOUT_ctl:OTPR 0-1 refresh to start oscillator.*/
+  return true;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Check Seconds register  to see if clock valide've run adjust() yet (setting the date/time and battery switchover mode)
+    @return ErrorNum for the state of PCF2127 set up
+*/
+/**************************************************************************/
+RTC_PCF2127::ErrorNum RTC_PCF2127::initialized(void) {
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE((byte)PCF2127_REGISTER::Seconds);
+  Wire.endTransmission();
+
+  if (1 ==Wire.requestFrom(_deviceAddr, 1)) {
+    uint8_t ss = Wire._I2C_READ();
+    return ((ss & 0x80) ? CLOCK_INTEGRITY_FAIL : NO_ERROR );
+  } else {
+    return I2C_ACCESS_FAIL;
+  }
+}
+/**************************************************************************/
+/*!
+    @brief  Check control register 3 to see if we've run adjust() yet (setting the date/time and battery switchover mode)
+    @return True if the PCF8523 has been set up, false if not
+*/
+/**************************************************************************/
+RTC_PCF2127::ErrorNum RTC_PCF2127::init(void) {
+  //Setup defaults
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE((byte)PCF2127_REGISTER::Control_1);
+  Wire._I2C_WRITE((byte)(Control_1_def));
+  Wire._I2C_WRITE((byte)(Control_2_def));
+  Wire._I2C_WRITE((byte)(Control_3_def));
+  Wire.endTransmission();
+  //Trigger Calibration Read and Start
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE((byte)PCF2127_REGISTER::CLKOUT_ctl);
+  Wire._I2C_WRITE((byte)(CLKout_sreg&OTPR_bit));
+  Wire.endTransmission();
+
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE((byte)PCF2127_REGISTER::CLKOUT_ctl);
+  Wire._I2C_WRITE((byte)(CLKout_sreg|OTPR_bit));
+  Wire.endTransmission();
+  //TODO: check for errors
+  return ( NO_ERROR  );
+}
+
+/**************************************************************************/
+/*!
+    @brief  Set the date and time, set battery switchover mode
+    @param dt DateTime to set
+*/
+/**************************************************************************/
+void RTC_PCF2127::adjust(const DateTime& dt) {
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE((byte)PCF2127_REGISTER::Seconds); 
+  Wire._I2C_WRITE(bin2bcd(dt.second()));
+  Wire._I2C_WRITE(bin2bcd(dt.minute()));
+  Wire._I2C_WRITE(bin2bcd(dt.hour()));
+  Wire._I2C_WRITE(bin2bcd(dt.day()));
+  Wire._I2C_WRITE(bin2bcd(0)); // skip weekdays
+  Wire._I2C_WRITE(bin2bcd(dt.month()));
+  Wire._I2C_WRITE(bin2bcd(dt.year() - 2000));
+  Wire.endTransmission();
+
+  // set to battery switchover mode
+  //Wire.beginTransmission(_deviceAddr);
+  //Wire._I2C_WRITE((byte)PCF2127_REGISTER::Control_3);
+  //Wire._I2C_WRITE((byte)0x00);
+  //Wire.endTransmission();
+}
+
+/**************************************************************************/
+/*!
+    @brief  Get the current date/time
+    @return DateTime object containing the current date/time
+*/
+/**************************************************************************/
+DateTime RTC_PCF2127::now() {
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE((byte)PCF2127_REGISTER::Seconds);
+  Wire.endTransmission();
+
+  //Compact read - tbd how to deal with PCF2127 failure
+  Wire.requestFrom(_deviceAddr, 7);
+  uint8_t ss = bcd2bin(Wire._I2C_READ() & 0x7F);
+  uint8_t mm = bcd2bin(Wire._I2C_READ());
+  uint8_t hh = bcd2bin(Wire._I2C_READ());
+  uint8_t d = bcd2bin(Wire._I2C_READ());
+  Wire._I2C_READ();  // skip 'weekdays'
+  uint8_t m = bcd2bin(Wire._I2C_READ());
+  uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
+
+  return DateTime (y, m, d, hh, mm, ss);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Read the mode of the SQW pin on the PCF8523
+    @return SQW pin mode as a Pcf8523SqwPinMode enum
+*/
+/**************************************************************************/
+RTC_PCF2127::CLKout_bits RTC_PCF2127::readSqwPinMode() {
+  #if 0
+  int mode;
+
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE(CLKOUT_ctl);
+  Wire.endTransmission();
+
+  Wire.requestFrom((uint8_t)_deviceAddr, (uint8_t)1);
+  mode = Wire._I2C_READ();
+
+  mode &= COF_mask;
+
+  return static_cast<CLKout_bits>(mode);
+  #endif //0
+  return static_cast<CLKout_bits>(CLKout_sreg & COF_mask);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Set the SQW pin mode on the PCF8523
+    @param mode The mode to set, see the Pcf8523SqwPinMode enum for options
+*/
+/**************************************************************************/
+void RTC_PCF2127::writeSqwPinMode(CLKout_bits sqPinMode) {
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE(CLKOUT_ctl);
+  CLKout_sreg = static_cast<CLKout_bits>((CLKout_sreg&COF_mask) |sqPinMode);
+  Wire._I2C_WRITE(CLKout_sreg);
+  Wire.endTransmission();
+}
 
 /**************************************************************************/
 /*!

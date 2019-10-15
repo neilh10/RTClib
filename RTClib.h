@@ -292,6 +292,154 @@ public:
   void calibrate(Pcf8523OffsetMode mode, int8_t offset);
 };
 
+/**************************************************************************/
+/*!
+    @brief  RTC/PCF2127 using lib Wire/I2C
+    Features RTC, Alarms, 512Bytes backed up ram 
+*/
+/**************************************************************************/
+class RTC_PCF2127 {
+public:
+  //Address as 7bits
+  #define PCF2127_BASE_ADDR   0x51
+
+    /** Fig 1 PCF2127 registers */
+  typedef enum {
+      Control_1,
+      Control_2,
+      Control_3,
+      Seconds,
+      Minutes,
+      Hours,
+      Days,
+      Weekdays,
+      Months,
+      Years,
+      Second_alarm,
+      Minute_alarm,
+      Hour_alarm,
+      Day_alarm,
+      Weekday_alarm,
+      CLKOUT_ctl,
+      Watchdg_tim_ctl,
+      Watchdg_tim_val,
+      Timestp_ctl,
+      Sec_timestp,
+      Min_timestp,
+      Hour_timestp,
+      Day_timestp,
+      Mon_timestp,
+      Year_timestp,
+      Aging_offset,
+      RAM_addr_MSB,
+      RAM_addr_LSB,
+      RAM_wrt_cmd,
+      RAM_rd_cmd
+  } PCF2127_REGISTER;  
+  typedef enum { /** Error code */
+      NO_ERROR                = 0,
+      CLOCK_INTEGRITY_FAIL    = 1,
+      I2C_ACCESS_FAIL         = 2,
+      //TIME_FUNC_ERROR         = ((time_t)-1)
+  } ErrorNum;
+
+  //Register Definitions
+  //Control 1 RTC_runs, no TimeStamp, 24hr Mode, No minute int, No Sec int
+  #define Control_1_def 0x00
+  //Control 2 No ints - Minute/Sec,Watchdog,Timestamp,Alm Countdown Timer,Timestamp, alarm, countdown timer flag 
+  #define Control_2_def 0x00
+  //BatSw En, No timestamp when bat swit
+  #define Control_3_def 0x00
+
+  typedef enum { //Register Definition
+    COF_mask         = 0x07, //pin CLKOUT square wave - 32Khz to 1Hz. High-z
+      PCF2127_OFF             = 7, // Off - high Z
+      PCF2127_SquareWave1HZ   = 6, // 1Hz square wave
+      PCF2127_SquareWave32HZ  = 5, // 32Hz square wave
+      PCF2127_SquareWave1kHz  = 4, // 1kHz square wave
+      PCF2127_SquareWave4kHz  = 3, // 4kHz square wave
+      PCF2127_SquareWave8kHz  = 2, // 8kHz square wave
+      PCF2127_SquareWave16kHz = 1, // 16kHz square wave
+      PCF2127_SquareWave32kHz = 0, // 32kHz square wave
+    OTPR_bit         = 0x40, //OneTimeProgram calibratiom parms refresh
+    TCR_mask         = 0xc0, //Temperature Measurement Frequency
+      TCR_4min =0x00,
+      TCR_2min =0x40,
+      TCR_1min =0X80,
+      TCR_30sec=0xC0,
+    CLKout_def= 0
+  }   CLKout_bits;
+
+  boolean begin(uint8_t address=PCF2127_BASE_ADDR);  
+  RTC_PCF2127::ErrorNum init(void);
+  RTC_PCF2127::ErrorNum initialized(void);
+  void adjust(const DateTime& dt);
+  //int set_time( struct tm *dtp );
+  //int set_time( time_t *tp );
+  //int set_time( char *s );
+  //static DateTime now();
+  DateTime now();
+  //time_t  time( time_t *tp ); //similar to "time()" in standard-C-library
+
+  /** Register access interface with integer to BCD conversion
+   *
+   *  @param addr Register address
+   *  @param s    Integer data. Converted to BCD before writing inot the register.
+   *  @return     Error code (NO_ERROR==0)
+   */
+  //int     set_alarm( char addr, char s );
+
+  /** Clear interrupt flag
+   *
+   *  Clears interrupt flags by writing 0x00 into Control_2 register
+   *
+   *  @return Error code (NO_ERROR==0)
+   */
+  //int     clear_intr( void );
+
+  CLKout_bits readSqwPinMode();
+  void writeSqwPinMode(CLKout_bits mode);
+  //void calibrate(Pcf2127OffsetMode mode, int8_t offset);
+
+  /** Writing data into internal RAM (for PCF2127 only)
+   *
+   *  PCF2127 512 bytes - can only acess 256 bytes at a time
+   *  due to RingBufferN<256> rxBuffer;
+   * 
+   *  @param address  target address of internal RAM
+   *  @param *p       pointer to write data buffer
+   *  @param size     size of writing data 1-255
+   *  @return         Error code (NO_ERROR==0)
+   */
+  //int  writeRam( int address, char *p, int size );
+
+  /** Reading data from intenal RAM (for PCF2127 only)
+   *
+   *  PCF2127  512bytes - can only acess 256 bytes at a time
+   *  due to RingBufferN<256> rxBuffer;
+   *
+   *  @param address  target address of internal RAM
+   *  @param *p       pointer to read data buffer
+   *  @param size     size of writing data 1-255
+   *  @return         Error code (NO_ERROR==0)
+   */
+  //int  readRam( int address, char *p, int size );
+
+ 	/**
+	 * Writes a single or multiple register value.
+	 */
+	//uint8_t writeRegister(PCF2127_REGISTER reg, uint8_t value);
+ 	//uint8_t writeRegister( char *buff_p, size_t buff_len);
+	/**
+	 * Reads a single register value.
+	 */
+  //uint8_t readRegister(PCF2127_REGISTER reg);
+
+
+private:
+	uint8_t _deviceAddr;
+  CLKout_bits CLKout_sreg=CLKout_def;  
+};
 
 /**************************************************************************/
 /*!
