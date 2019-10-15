@@ -337,9 +337,10 @@ public:
       RAM_rd_cmd
   } PCF2127_REGISTER;  
   typedef enum { /** Error code */
-      NO_ERROR                = 0,
-      CLOCK_INTEGRITY_FAIL    = 1,
-      I2C_ACCESS_FAIL         = 2,
+      NO_ERROR             = 0,
+      CLOCK_INTEGRITY_FAIL = 1,
+      I2C_ACCESS_FAIL      = 2,
+      OUT_OF_RANGE          =3,
       //TIME_FUNC_ERROR         = ((time_t)-1)
   } ErrorNum;
 
@@ -399,7 +400,7 @@ public:
 
   CLKout_bits readSqwPinMode();
   void writeSqwPinMode(CLKout_bits mode);
-  //void calibrate(Pcf2127OffsetMode mode, int8_t offset);
+  void calibrate(int8_t offset);
 
   /** Writing data into internal RAM (for PCF2127 only)
    *
@@ -411,7 +412,7 @@ public:
    *  @param size     size of writing data 1-255
    *  @return         Error code (NO_ERROR==0)
    */
-  //int  writeRam( int address, char *p, int size );
+  RTC_PCF2127::ErrorNum writeRam( int address, char *p, int size );
 
   /** Reading data from intenal RAM (for PCF2127 only)
    *
@@ -423,7 +424,7 @@ public:
    *  @param size     size of writing data 1-255
    *  @return         Error code (NO_ERROR==0)
    */
-  //int  readRam( int address, char *p, int size );
+  RTC_PCF2127::ErrorNum  readRam( int address, char *p, int size );
 
  	/**
 	 * Writes a single or multiple register value.
@@ -439,6 +440,8 @@ public:
 private:
 	uint8_t _deviceAddr;
   CLKout_bits CLKout_sreg=CLKout_def;  
+
+  RTC_PCF2127::ErrorNum setRamAddress( int address);
 };
 
 /**************************************************************************/

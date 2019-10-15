@@ -939,6 +939,8 @@ void RTC_PCF8523::calibrate(Pcf8523OffsetMode mode, int8_t offset) {
   Wire.endTransmission();
 }
 
+
+
 /**************************************************************************/
 ////////////////////////////////////////////////////////////////////////////////
 // RTC_PCF2127 implementation
@@ -1047,7 +1049,7 @@ DateTime RTC_PCF2127::now() {
 }
 
 /**************************************************************************/
-/*!
+/*! - not tested
     @brief  Read the mode of the SQW pin on the PCF8523
     @return SQW pin mode as a Pcf8523SqwPinMode enum
 */
@@ -1071,7 +1073,7 @@ RTC_PCF2127::CLKout_bits RTC_PCF2127::readSqwPinMode() {
 }
 
 /**************************************************************************/
-/*!
+/*! - not tested
     @brief  Set the SQW pin mode on the PCF8523
     @param mode The mode to set, see the Pcf8523SqwPinMode enum for options
 */
@@ -1082,6 +1084,96 @@ void RTC_PCF2127::writeSqwPinMode(CLKout_bits sqPinMode) {
   CLKout_sreg = static_cast<CLKout_bits>((CLKout_sreg&COF_mask) |sqPinMode);
   Wire._I2C_WRITE(CLKout_sreg);
   Wire.endTransmission();
+}
+
+/**************************************************************************/
+/*! - not tested
+    @brief  Use an offset to calibrate the PCF2127. 
+    @param offset Offset value from -7to +8 ppm. See Table18 forvalues.
+*/
+/**************************************************************************/
+void RTC_PCF2127::calibrate( int8_t offset) {
+  //uint8_t reg = (uint8_t) offset & 0xF;
+
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE(Aging_offset);
+  Wire._I2C_WRITE(offset & 0xF);
+  Wire.endTransmission();
+}
+
+/**************************************************************************/
+/*! - not tested, 
+    PCF2127 address is split across two bytes
+   
+    @param address  target address of internal RAM
+    @return         Error code (NO_ERROR==0)
+*/
+/**************************************************************************/
+RTC_PCF2127::ErrorNum RTC_PCF2127::setRamAddress( int address) {
+  ErrorNum ret_err;
+  bool i2c_pass=true; // Seed non0
+  Wire.beginTransmission(_deviceAddr);
+  i2c_pass &= Wire._I2C_WRITE((byte)PCF2127_REGISTER::RAM_addr_MSB);
+  i2c_pass &= Wire._I2C_WRITE((byte)((address>255)? 1 : 0));//Upper or Lower back
+  if (address >255) {address =- 255;}
+  i2c_pass &= Wire._I2C_WRITE((byte)(address));
+  ret_err = (ErrorNum) Wire.endTransmission();
+  if ((NO_ERROR != ret_err) || (false==i2c_pass)) ret_err = I2C_ACCESS_FAIL;
+  return ret_err;
+}
+/**************************************************************************/
+/*! - not tested, see TC_DS1307::writenvram
+    PCF2127 512 bytes - can only acess 256 bytes at a time
+    due to RingBufferN<256> rxBuffer;
+   
+    @param address  target address of internal RAM
+    @param *p       pointer to write data buffer
+    @param size     size of writing data 1-255
+    @return         Error code (NO_ERROR==0)
+*/
+/**************************************************************************/
+RTC_PCF2127::ErrorNum RTC_PCF2127::writeRam( int address, char *bufi2c, int sizeBuf ) {
+  ErrorNum ret_err;
+  bool i2c_pass=true; // Seed non0
+  if ((address+sizeBuf > 511) | (sizeBuf >255))return OUT_OF_RANGE; //Error
+  ret_err = setRamAddress(address);
+  if ( NO_ERROR == ret_err) {
+    Wire._I2C_WRITE((byte)PCF2127_REGISTER::RAM_wrt_cmd);
+    int qty = Wire._I2C_WRITE(bufi2c, sizeBuf);
+    ret_err = (ErrorNum) Wire.endTransmission();
+    if (qty!=sizeBuf) ret_err =I2C_ACCESS_FAIL;
+  }
+
+  return ret_err;
+}
+
+/**************************************************************************/
+/*! - not tested see RTC_DS1307::readnvram
+    PCF2127 512 bytes - can only acess 256 bytes at a time
+    due to RingBufferN<256> rxBuffer;
+   
+    @param address  target address of internal RAM
+    @param *p       pointer to write data buffer
+    @param size     size of writing data 1-255
+    @return         Error code (NO_ERROR==0)
+*/
+/**************************************************************************/
+RTC_PCF2127::ErrorNum RTC_PCF2127::readRam( int address, char *bufi2c, int sizeBuf) {
+  ErrorNum ret_err;
+  if ((address+sizeBuf > 511) | (sizeBuf >255))return OUT_OF_RANGE; //Error
+  ret_err = setRamAddress(address);
+  if ( NO_ERROR == ret_err) {
+    int qty = Wire.requestFrom((byte)PCF2127_REGISTER::RAM_rd_cmd, sizeBuf);
+    if (qty!=sizeBuf ) {
+      ret_err =I2C_ACCESS_FAIL;
+    } else {
+      for (uint8_t pos = 0; pos < sizeBuf; ++pos) {
+        bufi2c[pos] = Wire._I2C_READ();
+      }
+    }
+  }
+
+return ret_err;
 }
 
 /**************************************************************************/
