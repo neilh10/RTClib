@@ -1100,6 +1100,35 @@ void RTC_PCF2127::calibrate( int8_t offset) {
   Wire._I2C_WRITE(offset & 0xF);
   Wire.endTransmission();
 }
+/**************************************************************************/
+/*! - not tested
+    @brief  Set the WtchDogCtl 
+    @param wtchDogMode The mode to set, 
+*/
+/**************************************************************************/
+void RTC_PCF2127::wtchDogCtlWr(wtchDogCtl_bits wtchDogMode) {
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE(Watchdg_tim_ctl);
+  wtchDogCtl_sreg = wtchDogMode;
+  Wire._I2C_WRITE(wtchDogMode);
+  Wire.endTransmission();
+}
+RTC_PCF2127::wtchDogCtl_bits RTC_PCF2127::wtchDogCtlRd() {
+  return wtchDogCtl_sreg;
+}
+
+/**************************************************************************/
+/*! - not tested
+    @brief  Set the WtchDogVal
+    @param wtchDogCnt The val to set, 
+*/
+/**************************************************************************/
+void RTC_PCF2127::wtchDogValWr(uint8_t wtchDogCnt) {
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE(Watchdg_tim_val);
+  Wire._I2C_WRITE(wtchDogCnt);
+  Wire.endTransmission();
+}
 
 /**************************************************************************/
 /*! - not tested, 

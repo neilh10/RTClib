@@ -371,6 +371,23 @@ public:
     CLKout_def= 0
   }   CLKout_bits;
 
+  typedef enum { //Register Definition
+  TF_mask     = 0x03,
+    TF_4096Hz = 0x00,
+    TF_64Hz   = 0x01,
+    TF_1Hz    = 0x02,
+    TF_60thHz = 0x03,
+  //Bits 4-2 unused
+  TI_TP       = 0x20,
+  WD_CD_mask        = 0xC0,
+    WD_CD_ALL_DIS   = 0x00,
+    WD_CD_CNT_EN    = 0x40,
+    WD_CD_WDTINT_EN = 0x80,
+    WD_CD_WDTRST_EN = 0xC0,
+    wtchDogCtl_def = (WD_CD_ALL_DIS | TF_60thHz),
+    wtchDogCtl_1 = (WD_CD_WDTRST_EN | TF_60thHz),
+  } wtchDogCtl_bits;
+
   boolean begin(uint8_t address=PCF2127_BASE_ADDR);  
   RTC_PCF2127::ErrorNum init(void);
   RTC_PCF2127::ErrorNum initialized(void);
@@ -401,6 +418,10 @@ public:
   CLKout_bits readSqwPinMode();
   void writeSqwPinMode(CLKout_bits mode);
   void calibrate(int8_t offset);
+
+  void wtchDogCtlWr(wtchDogCtl_bits wtchDogMode);
+  wtchDogCtl_bits wtchDogCtlRd();
+  void wtchDogValWr(uint8_t wtchDogCnt);
 
   /** Writing data into internal RAM (for PCF2127 only)
    *
@@ -440,7 +461,7 @@ public:
 private:
 	uint8_t _deviceAddr;
   CLKout_bits CLKout_sreg=CLKout_def;  
-
+  wtchDogCtl_bits wtchDogCtl_sreg=wtchDogCtl_def;  
   RTC_PCF2127::ErrorNum setRamAddress( int address);
 };
 
