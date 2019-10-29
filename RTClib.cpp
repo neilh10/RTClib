@@ -361,6 +361,21 @@ char* DateTime::toString(char* buffer){
 	return buffer;
 }
 
+void DateTime::addToString(String & str) const
+{
+    add04d(str, year());
+    str += '-';
+    add02d(str, month());
+    str += '-';
+    add02d(str, date());
+    str += ' ';
+    add02d(str, hour());
+    str += ':';
+    add02d(str, minute());
+    str += ':';
+    add02d(str, second());
+}
+
 /**************************************************************************/
 /*!
     @brief  Return the day of the week for this object, from 0-6.

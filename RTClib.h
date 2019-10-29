@@ -58,7 +58,7 @@ public:
   DateTime (const char* date, const char* time);
   DateTime (const __FlashStringHelper* date, const __FlashStringHelper* time);
   char* toString(char* buffer);
-
+  void  addToString(String & str) const;
   /*!
       @brief  Return the year, stored as an offset from 2000
       @return uint16_t year
@@ -74,6 +74,7 @@ public:
       @return uint8_t day
   */
   uint8_t day() const         { return d; }
+  uint8_t date() const        { return d; } //depreciated
   /*!
       @brief  Return hours
       @return uint8_t hours
