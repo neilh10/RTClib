@@ -361,6 +361,29 @@ char* DateTime::toString(char* buffer){
 	return buffer;
 }
 
+/*
+ * Format an integer as %0*d
+ *
+ * Arduino formatting sucks.
+ */
+static void add0Nd(String &str, uint16_t val, size_t width)
+{
+    if (width >= 5 && val < 1000) {
+	str += '0';
+    }
+    if (width >= 4 && val < 100) {
+	str += '0';
+    }
+    if (width >= 3 && val < 100) {
+	str += '0';
+    }
+    if (width >= 2 && val < 10) {
+	str += '0';
+    }
+    str += val;
+}
+static inline void add04d(String &str, uint16_t val) { add0Nd(str, val, 4); }
+static inline void add02d(String &str, uint16_t val) { add0Nd(str, val, 2); }
 void DateTime::addToString(String & str) const
 {
     add04d(str, year());
