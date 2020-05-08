@@ -977,6 +977,141 @@ void RTC_PCF8523::calibrate(Pcf8523OffsetMode mode, int8_t offset) {
   Wire.endTransmission();
 }
 
+/**************************************************************************/
+/*!
+    @brief  Start I2C for the DS3231
+    @return True
+*/
+/**************************************************************************/
+boolean RTC_DS3231::begin(void) {
+  Wire.begin();
+  return true;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Check the status register Oscillator Stop Flag to see if the DS3231 stopped due to power loss
+    @return True if the bit is set (oscillator stopped) or false if it is running
+*/
+/**************************************************************************/
+bool RTC_DS3231::lostPower(void) {
+  return (read_i2c_register(DS3231_ADDRESS, DS3231_STATUSREG) >> 7);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Set the date and flip the Oscillator Stop Flag
+    @param dt DateTime object containing the date/time to set
+*/
+/**************************************************************************/
+void RTC_DS3231::adjust(const DateTime& dt) {
+  Wire.beginTransmission(DS3231_ADDRESS);
+  Wire._I2C_WRITE((byte)0); // start at location 0
+  Wire._I2C_WRITE(bin2bcd(dt.second()));
+  Wire._I2C_WRITE(bin2bcd(dt.minute()));
+  Wire._I2C_WRITE(bin2bcd(dt.hour()));
+  Wire._I2C_WRITE(bin2bcd(0));
+  Wire._I2C_WRITE(bin2bcd(dt.day()));
+  Wire._I2C_WRITE(bin2bcd(dt.month()));
+  Wire._I2C_WRITE(bin2bcd(dt.year() - 2000));
+  Wire.endTransmission();
+
+  uint8_t statreg = read_i2c_register(DS3231_ADDRESS, DS3231_STATUSREG);
+  statreg &= ~0x80; // flip OSF bit
+  write_i2c_register(DS3231_ADDRESS, DS3231_STATUSREG, statreg);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Get the current date/time
+    @return DateTime object with the current date/time
+*/
+/**************************************************************************/
+DateTime RTC_DS3231::now() {
+  Wire.beginTransmission(DS3231_ADDRESS);
+  Wire._I2C_WRITE((byte)0);
+  Wire.endTransmission();
+
+  Wire.requestFrom(DS3231_ADDRESS, 7);
+  uint8_t ss = bcd2bin(Wire._I2C_READ() & 0x7F);
+  uint8_t mm = bcd2bin(Wire._I2C_READ());
+  uint8_t hh = bcd2bin(Wire._I2C_READ());
+  Wire._I2C_READ();
+  uint8_t d = bcd2bin(Wire._I2C_READ());
+  uint8_t m = bcd2bin(Wire._I2C_READ());
+  uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
+
+  return DateTime (y, m, d, hh, mm, ss);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Read the SQW pin mode
+    @return Pin mode, see Ds3231SqwPinMode enum
+*/
+/**************************************************************************/
+Ds3231SqwPinMode RTC_DS3231::readSqwPinMode() {
+  int mode;
+
+  Wire.beginTransmission(DS3231_ADDRESS);
+  Wire._I2C_WRITE(DS3231_CONTROL);
+  Wire.endTransmission();
+
+  Wire.requestFrom((uint8_t)DS3231_ADDRESS, (uint8_t)1);
+  mode = Wire._I2C_READ();
+
+  mode &= 0x93;
+  return static_cast<Ds3231SqwPinMode>(mode);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Set the SQW pin mode
+    @param mode Desired mode, see Ds3231SqwPinMode enum
+*/
+/**************************************************************************/
+void RTC_DS3231::writeSqwPinMode(Ds3231SqwPinMode mode) {
+  uint8_t ctrl;
+  ctrl = read_i2c_register(DS3231_ADDRESS, DS3231_CONTROL);
+
+  ctrl &= ~0x04; // turn off INTCON
+  ctrl &= ~0x18; // set freq bits to 0
+
+  if (mode == DS3231_OFF) {
+    ctrl |= 0x04; // turn on INTCN
+  } else {
+    ctrl |= mode;
+  }
+  write_i2c_register(DS3231_ADDRESS, DS3231_CONTROL, ctrl);
+
+  //Serial.println( read_i2c_register(DS3231_ADDRESS, DS3231_CONTROL), HEX);
+}
+
+/**************************************************************************/
+/*!
+    @brief  Get the current temperature from the DS3231's temperature sensor
+    @return Current temperature (float)
+*/
+/**************************************************************************/
+float RTC_DS3231::getTemperature()
+{
+  uint8_t msb, lsb;
+  Wire.beginTransmission(DS3231_ADDRESS);
+  Wire._I2C_WRITE(DS3231_TEMPERATUREREG);
+  Wire.endTransmission();
+
+  Wire.requestFrom(DS3231_ADDRESS, 2);
+  msb = Wire._I2C_READ();
+  lsb = Wire._I2C_READ();
+
+//  Serial.print("msb=");
+//  Serial.print(msb,HEX);
+//  Serial.print(", lsb=");
+//  Serial.println(lsb,HEX);
+
+  return (float) msb + (lsb >> 6) * 0.25f;
+}
+
 
 
 /**************************************************************************/
@@ -1241,139 +1376,4 @@ RTC_PCF2127::ErrorNum RTC_PCF2127::readRam( int address, char *bufi2c, int sizeB
   }
 
 return ret_err;
-}
-
-/**************************************************************************/
-/*!
-    @brief  Start I2C for the DS3231
-    @return True
-*/
-/**************************************************************************/
-boolean RTC_DS3231::begin(void) {
-  Wire.begin();
-  return true;
-}
-
-/**************************************************************************/
-/*!
-    @brief  Check the status register Oscillator Stop Flag to see if the DS3231 stopped due to power loss
-    @return True if the bit is set (oscillator stopped) or false if it is running
-*/
-/**************************************************************************/
-bool RTC_DS3231::lostPower(void) {
-  return (read_i2c_register(DS3231_ADDRESS, DS3231_STATUSREG) >> 7);
-}
-
-/**************************************************************************/
-/*!
-    @brief  Set the date and flip the Oscillator Stop Flag
-    @param dt DateTime object containing the date/time to set
-*/
-/**************************************************************************/
-void RTC_DS3231::adjust(const DateTime& dt) {
-  Wire.beginTransmission(DS3231_ADDRESS);
-  Wire._I2C_WRITE((byte)0); // start at location 0
-  Wire._I2C_WRITE(bin2bcd(dt.second()));
-  Wire._I2C_WRITE(bin2bcd(dt.minute()));
-  Wire._I2C_WRITE(bin2bcd(dt.hour()));
-  Wire._I2C_WRITE(bin2bcd(0));
-  Wire._I2C_WRITE(bin2bcd(dt.day()));
-  Wire._I2C_WRITE(bin2bcd(dt.month()));
-  Wire._I2C_WRITE(bin2bcd(dt.year() - 2000));
-  Wire.endTransmission();
-
-  uint8_t statreg = read_i2c_register(DS3231_ADDRESS, DS3231_STATUSREG);
-  statreg &= ~0x80; // flip OSF bit
-  write_i2c_register(DS3231_ADDRESS, DS3231_STATUSREG, statreg);
-}
-
-/**************************************************************************/
-/*!
-    @brief  Get the current date/time
-    @return DateTime object with the current date/time
-*/
-/**************************************************************************/
-DateTime RTC_DS3231::now() {
-  Wire.beginTransmission(DS3231_ADDRESS);
-  Wire._I2C_WRITE((byte)0);
-  Wire.endTransmission();
-
-  Wire.requestFrom(DS3231_ADDRESS, 7);
-  uint8_t ss = bcd2bin(Wire._I2C_READ() & 0x7F);
-  uint8_t mm = bcd2bin(Wire._I2C_READ());
-  uint8_t hh = bcd2bin(Wire._I2C_READ());
-  Wire._I2C_READ();
-  uint8_t d = bcd2bin(Wire._I2C_READ());
-  uint8_t m = bcd2bin(Wire._I2C_READ());
-  uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
-
-  return DateTime (y, m, d, hh, mm, ss);
-}
-
-/**************************************************************************/
-/*!
-    @brief  Read the SQW pin mode
-    @return Pin mode, see Ds3231SqwPinMode enum
-*/
-/**************************************************************************/
-Ds3231SqwPinMode RTC_DS3231::readSqwPinMode() {
-  int mode;
-
-  Wire.beginTransmission(DS3231_ADDRESS);
-  Wire._I2C_WRITE(DS3231_CONTROL);
-  Wire.endTransmission();
-
-  Wire.requestFrom((uint8_t)DS3231_ADDRESS, (uint8_t)1);
-  mode = Wire._I2C_READ();
-
-  mode &= 0x93;
-  return static_cast<Ds3231SqwPinMode>(mode);
-}
-
-/**************************************************************************/
-/*!
-    @brief  Set the SQW pin mode
-    @param mode Desired mode, see Ds3231SqwPinMode enum
-*/
-/**************************************************************************/
-void RTC_DS3231::writeSqwPinMode(Ds3231SqwPinMode mode) {
-  uint8_t ctrl;
-  ctrl = read_i2c_register(DS3231_ADDRESS, DS3231_CONTROL);
-
-  ctrl &= ~0x04; // turn off INTCON
-  ctrl &= ~0x18; // set freq bits to 0
-
-  if (mode == DS3231_OFF) {
-    ctrl |= 0x04; // turn on INTCN
-  } else {
-    ctrl |= mode;
-  }
-  write_i2c_register(DS3231_ADDRESS, DS3231_CONTROL, ctrl);
-
-  //Serial.println( read_i2c_register(DS3231_ADDRESS, DS3231_CONTROL), HEX);
-}
-
-/**************************************************************************/
-/*!
-    @brief  Get the current temperature from the DS3231's temperature sensor
-    @return Current temperature (float)
-*/
-/**************************************************************************/
-float RTC_DS3231::getTemperature()
-{
-  uint8_t msb, lsb;
-  Wire.beginTransmission(DS3231_ADDRESS);
-  Wire._I2C_WRITE(DS3231_TEMPERATUREREG);
-  Wire.endTransmission();
-
-  Wire.requestFrom(DS3231_ADDRESS, 2);
-  msb = Wire._I2C_READ();
-  lsb = Wire._I2C_READ();
-
-//  Serial.print("msb=");
-//  Serial.print(msb,HEX);
-//  Serial.print(", lsb=");
-//  Serial.println(lsb,HEX);
-
-  return (float) msb + (lsb >> 6) * 0.25f;
 }
