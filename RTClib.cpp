@@ -43,35 +43,35 @@
 /**************************************************************************/
 
 #ifdef __AVR_ATtiny85__
- #include <TinyWireM.h>
- #define Wire TinyWireM
+#include <TinyWireM.h>
+#define Wire TinyWireM
 #else
 #include <Wire.h>
 #endif
 
 #include "RTClib.h"
 #ifdef __AVR__
- #include <avr/pgmspace.h>
+#include <avr/pgmspace.h>
 #elif defined(ESP8266)
- #include <pgmspace.h>
+#include <pgmspace.h>
 #elif defined(ARDUINO_ARCH_SAMD)
 // nothing special needed
 #elif defined(ARDUINO_SAM_DUE)
- #define PROGMEM
- #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
- #define Wire Wire1
+#define PROGMEM
+#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+#define Wire Wire1
 #endif
 
 #if (ARDUINO >= 100)
- #include <Arduino.h> // capital A so it is error prone on case-sensitive filesystems
+#include <Arduino.h> // capital A so it is error prone on case-sensitive filesystems
 // Macro to deal with the difference in I2C write functions from old and new
- // Macro to deal with the difference in I2C write functions from old and new Arduino versions.
- #define _I2C_WRITE write   ///< Modern I2C write
- #define _I2C_READ  read    ///< Modern I2C read
+// Arduino versions.
+#define _I2C_WRITE write ///< Modern I2C write
+#define _I2C_READ read   ///< Modern I2C read
 #else
- #include <WProgram.h>
- #define _I2C_WRITE send    ///< Legacy I2C write
- #define _I2C_READ  receive ///< legacy I2C read
+#include <WProgram.h>
+#define _I2C_WRITE send   ///< Legacy I2C write
+#define _I2C_READ receive ///< legacy I2C read
 #endif
 
 /**************************************************************************/
@@ -106,10 +106,10 @@ static void write_i2c_register(uint8_t addr, uint8_t reg, uint8_t val) {
   Wire.endTransmission();
 }
 
-
 /**************************************************************************/
 // utility code, some of this could be exposed in the DateTime API if needed
 /**************************************************************************/
+
 /**
   Number of days in each month, from January to November. December is not
   needed. Omitting it avoids an incompatibility with Paul Stoffregen's Time
@@ -129,14 +129,14 @@ const uint8_t daysInMonth[] PROGMEM = {31, 28, 31, 30, 31, 30,
 */
 /**************************************************************************/
 static uint16_t date2days(uint16_t y, uint8_t m, uint8_t d) {
-    if (y >= 2000)
-        y -= 2000;
-    uint16_t days = d;
-    for (uint8_t i = 1; i < m; ++i)
-        days += pgm_read_byte(daysInMonth + i - 1);
-    if (m > 2 && y % 4 == 0)
-        ++days;
-    return days + 365 * y + (y + 3) / 4 - 1;
+  if (y >= 2000)
+    y -= 2000;
+  uint16_t days = d;
+  for (uint8_t i = 1; i < m; ++i)
+    days += pgm_read_byte(daysInMonth + i - 1);
+  if (m > 2 && y % 4 == 0)
+    ++days;
+  return days + 365 * y + (y + 3) / 4 - 1;
 }
 
 /**************************************************************************/
@@ -182,8 +182,8 @@ static uint32_t time2ulong(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
     @param t Time elapsed in seconds since 1970-01-01 00:00:00.
 */
 /**************************************************************************/
-DateTime::DateTime (uint32_t t) {
-  t -= SECONDS_FROM_1970_TO_2000;    // bring to 2000 timestamp from 1970
+DateTime::DateTime(uint32_t t) {
+  t -= SECONDS_FROM_1970_TO_2000; // bring to 2000 timestamp from 1970
 
   ss = t % 60;
   t /= 60;
@@ -192,7 +192,7 @@ DateTime::DateTime (uint32_t t) {
   hh = t % 24;
   uint16_t days = t / 24;
   uint8_t leap;
-  for (yOff = 0; ; ++yOff) {
+  for (yOff = 0;; ++yOff) {
     leap = yOff % 4 == 0;
     if (days < 365U + leap)
       break;
@@ -225,14 +225,14 @@ DateTime::DateTime (uint32_t t) {
 /**************************************************************************/
 DateTime::DateTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour,
                    uint8_t min, uint8_t sec) {
-    if (year >= 2000)
-        year -= 2000;
-    yOff = year;
-    m = month;
-    d = day;
-    hh = hour;
-    mm = min;
-    ss = sec;
+  if (year >= 2000)
+    year -= 2000;
+  yOff = year;
+  m = month;
+  d = day;
+  hh = hour;
+  mm = min;
+  ss = sec;
 }
 
 /**************************************************************************/
@@ -252,11 +252,11 @@ DateTime::DateTime(const DateTime &copy)
     @param p Pointer to a string containing two digits
 */
 /**************************************************************************/
-static uint8_t conv2d(const char* p) {
-    uint8_t v = 0;
-    if ('0' <= *p && *p <= '9')
-        v = *p - '0';
-    return 10 * v + *++p - '0';
+static uint8_t conv2d(const char *p) {
+  uint8_t v = 0;
+  if ('0' <= *p && *p <= '9')
+    v = *p - '0';
+  return 10 * v + *++p - '0';
 }
 
 /**************************************************************************/
@@ -278,10 +278,10 @@ static uint8_t conv2d(const char* p) {
     @param time Time string, e.g. "18:34:56".
 */
 /**************************************************************************/
-DateTime::DateTime (const char* date, const char* time) {
-    yOff = conv2d(date + 9);
-    // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
-    switch (date[0]) {
+DateTime::DateTime(const char *date, const char *time) {
+  yOff = conv2d(date + 9);
+  // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+  switch (date[0]) {
   case 'J':
     m = (date[1] == 'a') ? 1 : ((date[2] == 'n') ? 6 : 7);
     break;
@@ -306,11 +306,11 @@ DateTime::DateTime (const char* date, const char* time) {
   case 'D':
     m = 12;
     break;
-    }
-    d = conv2d(date + 4);
-    hh = conv2d(time);
-    mm = conv2d(time + 3);
-    ss = conv2d(time + 6);
+  }
+  d = conv2d(date + 4);
+  hh = conv2d(time);
+  mm = conv2d(time + 3);
+  ss = conv2d(time + 6);
 }
 
 /**************************************************************************/
@@ -330,11 +330,11 @@ DateTime::DateTime (const char* date, const char* time) {
 /**************************************************************************/
 DateTime::DateTime(const __FlashStringHelper *date,
                    const __FlashStringHelper *time) {
-    char buff[11];
-    memcpy_P(buff, date, 11);
-    yOff = conv2d(buff + 9);
-    // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
-    switch (buff[0]) {
+  char buff[11];
+  memcpy_P(buff, date, 11);
+  yOff = conv2d(buff + 9);
+  // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+  switch (buff[0]) {
   case 'J':
     m = (buff[1] == 'a') ? 1 : ((buff[2] == 'n') ? 6 : 7);
     break;
@@ -359,12 +359,12 @@ DateTime::DateTime(const __FlashStringHelper *date,
   case 'D':
     m = 12;
     break;
-    }
-    d = conv2d(buff + 4);
-    memcpy_P(buff, time, 8);
-    hh = conv2d(buff);
-    mm = conv2d(buff + 3);
-    ss = conv2d(buff + 6);
+  }
+  d = conv2d(buff + 4);
+  memcpy_P(buff, time, 8);
+  hh = conv2d(buff);
+  mm = conv2d(buff + 3);
+  ss = conv2d(buff + 6);
 }
 
 /**************************************************************************/
@@ -428,7 +428,7 @@ bool DateTime::isValid() const {
 */
 /**************************************************************************/
 
-char* DateTime::toString(char* buffer){
+char *DateTime::toString(char *buffer) {
   uint8_t apTag =
       (strstr(buffer, "ap") != nullptr) || (strstr(buffer, "AP") != nullptr);
   uint8_t hourReformatted, isPM;
@@ -515,7 +515,7 @@ char* DateTime::toString(char* buffer){
       }
     }
   }
-	return buffer;
+  return buffer;
 }
 
 /**************************************************************************/
@@ -541,8 +541,8 @@ uint8_t DateTime::twelveHour() const {
 */
 /**************************************************************************/
 uint8_t DateTime::dayOfTheWeek() const {
-    uint16_t day = date2days(yOff, m, d);
-    return (day + 6) % 7; // Jan 1, 2000 is a Saturday, i.e. returns 6
+  uint16_t day = date2days(yOff, m, d);
+  return (day + 6) % 7; // Jan 1, 2000 is a Saturday, i.e. returns 6
 }
 
 /**************************************************************************/
@@ -559,7 +559,7 @@ uint32_t DateTime::unixtime(void) const {
   uint32_t t;
   uint16_t days = date2days(yOff, m, d);
   t = time2ulong(days, hh, mm, ss);
-  t += SECONDS_FROM_1970_TO_2000;  // seconds from 1970 to 2000
+  t += SECONDS_FROM_1970_TO_2000; // seconds from 1970 to 2000
 
   return t;
 }
@@ -591,8 +591,8 @@ uint32_t DateTime::secondstime(void) const {
     @return New DateTime object with span added to it.
 */
 /**************************************************************************/
-DateTime DateTime::operator+(const TimeSpan& span) {
-  return DateTime(unixtime()+span.totalseconds());
+DateTime DateTime::operator+(const TimeSpan &span) {
+  return DateTime(unixtime() + span.totalseconds());
 }
 
 /**************************************************************************/
@@ -602,8 +602,8 @@ DateTime DateTime::operator+(const TimeSpan& span) {
     @return New DateTime object with span subtracted from it.
 */
 /**************************************************************************/
-DateTime DateTime::operator-(const TimeSpan& span) {
-  return DateTime(unixtime()-span.totalseconds());
+DateTime DateTime::operator-(const TimeSpan &span) {
+  return DateTime(unixtime() - span.totalseconds());
 }
 
 /**************************************************************************/
@@ -618,8 +618,8 @@ DateTime DateTime::operator-(const TimeSpan& span) {
     @return TimeSpan of the difference between DateTimes.
 */
 /**************************************************************************/
-TimeSpan DateTime::operator-(const DateTime& right) {
-  return TimeSpan(unixtime()-right.unixtime());
+TimeSpan DateTime::operator-(const DateTime &right) {
+  return TimeSpan(unixtime() - right.unixtime());
 }
 
 /**************************************************************************/
@@ -630,7 +630,7 @@ TimeSpan DateTime::operator-(const DateTime& right) {
         false otherwise.
 */
 /**************************************************************************/
-bool DateTime::operator<(const DateTime& right) const {
+bool DateTime::operator<(const DateTime &right) const {
   return unixtime() < right.unixtime();
 }
 
@@ -641,7 +641,7 @@ bool DateTime::operator<(const DateTime& right) const {
     @return True if both DateTime objects are the same, false otherwise.
 */
 /**************************************************************************/
-bool DateTime::operator==(const DateTime& right) const {
+bool DateTime::operator==(const DateTime &right) const {
   return unixtime() == right.unixtime();
 }
 
@@ -660,21 +660,21 @@ bool DateTime::operator==(const DateTime& right) const {
     @return Timestamp string, e.g. "2020-04-16T18:34:56".
 */
 /**************************************************************************/
-String DateTime::timestamp(timestampOpt opt){
+String DateTime::timestamp(timestampOpt opt) {
   char buffer[20];
 
-  //Generate timestamp according to opt
-  switch(opt){
-    case TIMESTAMP_TIME:
-    //Only time
+  // Generate timestamp according to opt
+  switch (opt) {
+  case TIMESTAMP_TIME:
+    // Only time
     sprintf(buffer, "%02d:%02d:%02d", hh, mm, ss);
     break;
-    case TIMESTAMP_DATE:
-    //Only date
-    sprintf(buffer, "%d-%02d-%02d", 2000+yOff, m, d);
+  case TIMESTAMP_DATE:
+    // Only date
+    sprintf(buffer, "%d-%02d-%02d", 2000 + yOff, m, d);
     break;
-    default:
-    //Full
+  default:
+    // Full
     sprintf(buffer, "%d-%02d-%02dT%02d:%02d:%02d", 2000 + yOff, m, d, hh, mm,
             ss);
   }
@@ -719,8 +719,8 @@ TimeSpan::TimeSpan(const TimeSpan &copy) : _seconds(copy._seconds) {}
     @return New TimeSpan object, sum of left and right
 */
 /**************************************************************************/
-TimeSpan TimeSpan::operator+(const TimeSpan& right) {
-  return TimeSpan(_seconds+right._seconds);
+TimeSpan TimeSpan::operator+(const TimeSpan &right) {
+  return TimeSpan(_seconds + right._seconds);
 }
 
 /**************************************************************************/
@@ -730,8 +730,8 @@ TimeSpan TimeSpan::operator+(const TimeSpan& right) {
     @return New TimeSpan object, right subtracted from left
 */
 /**************************************************************************/
-TimeSpan TimeSpan::operator-(const TimeSpan& right) {
-  return TimeSpan(_seconds-right._seconds);
+TimeSpan TimeSpan::operator-(const TimeSpan &right) {
+  return TimeSpan(_seconds - right._seconds);
 }
 
 /**************************************************************************/
@@ -742,7 +742,7 @@ TimeSpan TimeSpan::operator-(const TimeSpan& right) {
     @return Binary value
 */
 /**************************************************************************/
-static uint8_t bcd2bin (uint8_t val) { return val - 6 * (val >> 4); }
+static uint8_t bcd2bin(uint8_t val) { return val - 6 * (val >> 4); }
 
 /**************************************************************************/
 /*!
@@ -751,7 +751,7 @@ static uint8_t bcd2bin (uint8_t val) { return val - 6 * (val >> 4); }
     @return BCD value
 */
 /**************************************************************************/
-static uint8_t bin2bcd (uint8_t val) { return val + 6 * (val / 10); }
+static uint8_t bin2bcd(uint8_t val) { return val + 6 * (val / 10); }
 
 /**************************************************************************/
 /*!
@@ -777,7 +777,7 @@ uint8_t RTC_DS1307::isrunning(void) {
 
   Wire.requestFrom(DS1307_ADDRESS, 1);
   uint8_t ss = Wire._I2C_READ();
-  return !(ss>>7);
+  return !(ss >> 7);
 }
 
 /**************************************************************************/
@@ -786,7 +786,7 @@ uint8_t RTC_DS1307::isrunning(void) {
     @param dt DateTime object containing the desired date/time
 */
 /**************************************************************************/
-void RTC_DS1307::adjust(const DateTime& dt) {
+void RTC_DS1307::adjust(const DateTime &dt) {
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire._I2C_WRITE((byte)0); // start at location 0
   Wire._I2C_WRITE(bin2bcd(dt.second()));
@@ -819,7 +819,7 @@ DateTime RTC_DS1307::now() {
   uint8_t m = bcd2bin(Wire._I2C_READ());
   uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
 
-  return DateTime (y, m, d, hh, mm, ss);
+  return DateTime(y, m, d, hh, mm, ss);
 }
 
 /**************************************************************************/
@@ -864,13 +864,13 @@ void RTC_DS1307::writeSqwPinMode(Ds1307SqwPinMode mode) {
     @param address Starting NVRAM address, from 0 to 55
 */
 /**************************************************************************/
-void RTC_DS1307::readnvram(uint8_t* buf, uint8_t size, uint8_t address) {
+void RTC_DS1307::readnvram(uint8_t *buf, uint8_t size, uint8_t address) {
   int addrByte = DS1307_NVRAM + address;
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire._I2C_WRITE(addrByte);
   Wire.endTransmission();
 
-  Wire.requestFrom((uint8_t) DS1307_ADDRESS, size);
+  Wire.requestFrom((uint8_t)DS1307_ADDRESS, size);
   for (uint8_t pos = 0; pos < size; ++pos) {
     buf[pos] = Wire._I2C_READ();
   }
@@ -884,7 +884,7 @@ void RTC_DS1307::readnvram(uint8_t* buf, uint8_t size, uint8_t address) {
     @param size Number of bytes in buf to write to NVRAM
 */
 /**************************************************************************/
-void RTC_DS1307::writenvram(uint8_t address, uint8_t* buf, uint8_t size) {
+void RTC_DS1307::writenvram(uint8_t address, uint8_t *buf, uint8_t size) {
   int addrByte = DS1307_NVRAM + address;
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire._I2C_WRITE(addrByte);
@@ -932,7 +932,7 @@ uint32_t RTC_Millis::lastUnix;
     @param dt DateTime object with the desired date and time
 */
 /**************************************************************************/
-void RTC_Millis::adjust(const DateTime& dt) {
+void RTC_Millis::adjust(const DateTime &dt) {
   lastMillis = millis();
   lastUnix = dt.unixtime();
 }
@@ -966,7 +966,7 @@ uint32_t RTC_Micros::lastUnix;
     @param dt DateTime object with the desired date and time
 */
 /**************************************************************************/
-void RTC_Micros::adjust(const DateTime& dt) {
+void RTC_Micros::adjust(const DateTime &dt) {
   lastMicros = micros();
   lastUnix = dt.unixtime();
 }
@@ -1033,7 +1033,7 @@ boolean RTC_PCF8523::initialized(void) {
 
   Wire.requestFrom(PCF8523_ADDRESS, 1);
   uint8_t ss = Wire._I2C_READ();
-  return ((ss & 0xE0) != 0xE0);
+  return ((ss & 0xE0) != 0xE0); // 0xE0 = standby mode, set after power out
 }
 
 /**************************************************************************/
@@ -1042,7 +1042,7 @@ boolean RTC_PCF8523::initialized(void) {
     @param dt DateTime to set
 */
 /**************************************************************************/
-void RTC_PCF8523::adjust(const DateTime& dt) {
+void RTC_PCF8523::adjust(const DateTime &dt) {
   Wire.beginTransmission(PCF8523_ADDRESS);
   Wire._I2C_WRITE((byte)3); // start at location 3
   Wire._I2C_WRITE(bin2bcd(dt.second()));
@@ -1077,11 +1077,11 @@ DateTime RTC_PCF8523::now() {
   uint8_t mm = bcd2bin(Wire._I2C_READ());
   uint8_t hh = bcd2bin(Wire._I2C_READ());
   uint8_t d = bcd2bin(Wire._I2C_READ());
-  Wire._I2C_READ();  // skip 'weekdays'
+  Wire._I2C_READ(); // skip 'weekdays'
   uint8_t m = bcd2bin(Wire._I2C_READ());
   uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
 
-  return DateTime (y, m, d, hh, mm, ss);
+  return DateTime(y, m, d, hh, mm, ss);
 }
 
 /**************************************************************************/
@@ -1114,7 +1114,7 @@ Pcf8523SqwPinMode RTC_PCF8523::readSqwPinMode() {
 void RTC_PCF8523::writeSqwPinMode(Pcf8523SqwPinMode mode) {
   Wire.beginTransmission(PCF8523_ADDRESS);
   Wire._I2C_WRITE(PCF8523_CLKOUTCONTROL);
-  Wire._I2C_WRITE(mode << 3);
+  Wire._I2C_WRITE(mode << 3); // disables other timers
   Wire.endTransmission();
 }
 
@@ -1253,7 +1253,7 @@ void RTC_PCF8523::deconfigureAllTimers() {
 */
 /**************************************************************************/
 void RTC_PCF8523::calibrate(Pcf8523OffsetMode mode, int8_t offset) {
-  uint8_t reg = (uint8_t) offset & 0x7F;
+  uint8_t reg = (uint8_t)offset & 0x7F;
   reg |= mode;
 
   Wire.beginTransmission(PCF8523_ADDRESS);
@@ -1272,7 +1272,7 @@ boolean RTC_DS3231::begin(void) {
   Wire.begin();
   Wire.beginTransmission(DS3231_ADDRESS);
   if (Wire.endTransmission() == 0)
-  return true;
+    return true;
   return false;
 }
 
@@ -1294,7 +1294,7 @@ bool RTC_DS3231::lostPower(void) {
     @param dt DateTime object containing the date/time to set
 */
 /**************************************************************************/
-void RTC_DS3231::adjust(const DateTime& dt) {
+void RTC_DS3231::adjust(const DateTime &dt) {
   Wire.beginTransmission(DS3231_ADDRESS);
   Wire._I2C_WRITE((byte)DS3231_TIME); // start at location 0
   Wire._I2C_WRITE(bin2bcd(dt.second()));
@@ -1331,7 +1331,7 @@ DateTime RTC_DS3231::now() {
   uint8_t m = bcd2bin(Wire._I2C_READ());
   uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
 
-  return DateTime (y, m, d, hh, mm, ss);
+  return DateTime(y, m, d, hh, mm, ss);
 }
 
 /**************************************************************************/
@@ -1374,7 +1374,7 @@ void RTC_DS3231::writeSqwPinMode(Ds3231SqwPinMode mode) {
   }
   write_i2c_register(DS3231_ADDRESS, DS3231_CONTROL, ctrl);
 
-  //Serial.println( read_i2c_register(DS3231_ADDRESS, DS3231_CONTROL), HEX);
+  // Serial.println( read_i2c_register(DS3231_ADDRESS, DS3231_CONTROL), HEX);
 }
 
 /**************************************************************************/
@@ -1394,12 +1394,12 @@ float RTC_DS3231::getTemperature() {
   msb = Wire._I2C_READ();
   lsb = Wire._I2C_READ();
 
-//  Serial.print("msb=");
-//  Serial.print(msb,HEX);
-//  Serial.print(", lsb=");
-//  Serial.println(lsb,HEX);
+  //  Serial.print("msb=");
+  //  Serial.print(msb,HEX);
+  //  Serial.print(", lsb=");
+  //  Serial.println(lsb,HEX);
 
-  return (float) msb + (lsb >> 6) * 0.25f;
+  return (float)msb + (lsb >> 6) * 0.25f;
 }
 
 /**************************************************************************/
