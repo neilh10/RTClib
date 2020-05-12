@@ -435,6 +435,8 @@ public:
   #define Control_2_def 0x00
   //BatSw En, No timestamp when bat swit
   #define Control_3_def 0x00
+  
+  #define SECS_OSF_MASK 0x80
 
   typedef enum { //Register Definition
     COF_mask         = 0x07, //pin CLKOUT square wave - 32Khz to 1Hz. High-z
@@ -540,7 +542,7 @@ public:
 	 * Reads a single register value.
 	 */
   //uint8_t readRegister(PCF2127_REGISTER reg);
-
+  uint8_t OSF; //0 clock integrity good, !0 osc has stopped 
 
 private:
 	uint8_t _deviceAddr;

@@ -431,7 +431,7 @@ bool DateTime::isValid() const {
 char *DateTime::toString(char *buffer) {
   uint8_t apTag =
       (strstr(buffer, "ap") != nullptr) || (strstr(buffer, "AP") != nullptr);
-  uint8_t hourReformatted, isPM;
+  uint8_t hourReformatted=0, isPM=false;
   if (apTag) {     // 12 Hour Mode
     if (hh == 0) { // midnight
       isPM = false;
@@ -661,7 +661,7 @@ bool DateTime::operator==(const DateTime &right) const {
 */
 /**************************************************************************/
 String DateTime::timestamp(timestampOpt opt) {
-  char buffer[20];
+  char buffer[30];//Shouldn't exceed this but not calculated.
 
   // Generate timestamp according to opt
   switch (opt) {
@@ -1589,6 +1589,7 @@ RTC_PCF2127::ErrorNum RTC_PCF2127::initialized(void) {
 */
 /**************************************************************************/
 RTC_PCF2127::ErrorNum RTC_PCF2127::init(void) {
+  RTC_PCF2127::ErrorNum retError= NO_ERROR;
   //Setup defaults
   Wire.beginTransmission(_deviceAddr);
   Wire._I2C_WRITE((byte)PCF2127_REGISTER::Control_1);
@@ -1606,8 +1607,21 @@ RTC_PCF2127::ErrorNum RTC_PCF2127::init(void) {
   Wire._I2C_WRITE((byte)PCF2127_REGISTER::CLKOUT_ctl);
   Wire._I2C_WRITE((byte)(CLKout_sreg|OTPR_bit));
   Wire.endTransmission();
-  //TODO: check for errors
-  return ( NO_ERROR  );
+  
+  // check for errors
+  Wire.beginTransmission(_deviceAddr);
+  Wire._I2C_WRITE((byte)PCF2127_REGISTER::Seconds);
+  Wire.endTransmission();
+
+  //Compact read - tbd how to deal with PCF2127 failure
+  Wire.requestFrom(_deviceAddr, 7);
+  uint8_t ss = bcd2bin(Wire._I2C_READ() );
+  if (SECS_OSF_MASK & ss) 
+  {
+    retError = CLOCK_INTEGRITY_FAIL;
+  }
+
+  return retError;
 }
 
 /**************************************************************************/
@@ -1648,7 +1662,10 @@ DateTime RTC_PCF2127::now() {
 
   //Compact read - tbd how to deal with PCF2127 failure
   Wire.requestFrom(_deviceAddr, 7);
-  uint8_t ss = bcd2bin(Wire._I2C_READ() & 0x7F);
+  uint8_t ss = bcd2bin(Wire._I2C_READ() );
+
+  OSF = SECS_OSF_MASK & ss;
+  ss &= ~SECS_OSF_MASK;
   uint8_t mm = bcd2bin(Wire._I2C_READ());
   uint8_t hh = bcd2bin(Wire._I2C_READ());
   uint8_t d = bcd2bin(Wire._I2C_READ());
@@ -1774,7 +1791,7 @@ RTC_PCF2127::ErrorNum RTC_PCF2127::setRamAddress( int address) {
 /**************************************************************************/
 RTC_PCF2127::ErrorNum RTC_PCF2127::writeRam( int address, char *bufi2c, int sizeBuf ) {
   ErrorNum ret_err;
-  bool i2c_pass=true; // Seed non0
+  //bool i2c_pass=true; // Seed non0
   if ((address+sizeBuf > 511) | (sizeBuf >255))return OUT_OF_RANGE; //Error
   ret_err = setRamAddress(address);
   if ( NO_ERROR == ret_err) {
