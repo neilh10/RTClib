@@ -1570,9 +1570,12 @@ boolean RTC_PCF2127::begin(uint8_t address) {
 
 	_deviceAddr = address;
   Wire.begin();
+  Wire.beginTransmission(_deviceAddr);
+  if (Wire.endTransmission() == 0)
+    return true;
+  return false;
   /*FUT: Need to Check if running,
    and if not CLKOUT_ctl:OTPR 0-1 refresh to start oscillator.*/
-  return true;
 }
 /**************************************************************************/
 /*!

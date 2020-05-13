@@ -25,6 +25,7 @@ void setup () {
   SerialTty.begin(115200);
   if (! rtcExtPh.begin()) {
     SerialTty.println("Couldn't find RTC");
+    Serial.flush(); // ensure above text prints with nRF52 native USB Serial
     delay(100);
     while (1);
   }
