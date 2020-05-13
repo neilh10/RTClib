@@ -475,6 +475,8 @@ public:
   } wtchDogCtl_bits;
 
   boolean begin(uint8_t address=PCF2127_BASE_ADDR);  
+  boolean lostPower(void);
+  boolean lostPowerCache(void);
   RTC_PCF2127::ErrorNum init(void);
   RTC_PCF2127::ErrorNum initialized(void);
   void adjust(const DateTime& dt);
@@ -542,7 +544,7 @@ public:
 	 * Reads a single register value.
 	 */
   //uint8_t readRegister(PCF2127_REGISTER reg);
-  uint8_t OSF; //0 clock integrity good, !0 osc has stopped 
+  uint8_t OSFcache; //0 clock integrity good, !0 osc has stopped 
 
 private:
 	uint8_t _deviceAddr;

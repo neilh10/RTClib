@@ -1049,7 +1049,7 @@ void RTC_PCF8523::adjust(const DateTime &dt) {
   Wire._I2C_WRITE(bin2bcd(dt.minute()));
   Wire._I2C_WRITE(bin2bcd(dt.hour()));
   Wire._I2C_WRITE(bin2bcd(dt.day()));
-  Wire._I2C_WRITE(bin2bcd(0)); // skip weekdays
+  Wire._I2C_WRITE(bin2bcd(dt.dayOfTheWeek())); // seems to need it
   Wire._I2C_WRITE(bin2bcd(dt.month()));
   Wire._I2C_WRITE(bin2bcd(dt.year() - 2000));
   Wire.endTransmission();
@@ -1555,6 +1555,11 @@ void DateTime::addToString(String & str) const
 /**************************************************************************/
 ////////////////////////////////////////////////////////////////////////////
 // RTC_PCF2127 implementation
+  #define PCF2127_STATUSREG (byte)PCF2127_REGISTER::Seconds
+  #define PCF2127_SECSREG   (byte)PCF2127_REGISTER::Seconds
+  #define PCF2127_OSF_BIT_NUM 7
+  #define PCF2127_OSF_BIT_MASK (1<<PCF2127_OSF_BIT_NUM)
+  #define OSFupdate(ss_reg) (PCF2127_OSF_BIT_MASK & ss_reg) ? true : false;
 boolean RTC_PCF2127::begin(uint8_t address) {
 
 	_deviceAddr = address;
@@ -1563,7 +1568,26 @@ boolean RTC_PCF2127::begin(uint8_t address) {
    and if not CLKOUT_ctl:OTPR 0-1 refresh to start oscillator.*/
   return true;
 }
+/**************************************************************************/
+/*!
+    @brief  Check the status register Oscillator Stop flag to see if the PCF2127
+   stopped due to power loss
+    @details When battery or external power is first applied, the PCF2127's
+   crystal oscillator takes up to 2s to stabilize. During this time adjust()
+   cannot clear the 'OS' flag. See datasheet OS flag section for details.
+   (taken from PCF8523 - is it correct)
+    @return True if the bit is set (oscillator is or has stopped) and false only
+   after the bit is cleared, for instance with adjust()
+*/
+/**************************************************************************/
+boolean RTC_PCF2127::lostPower(void) {
 
+  OSFcache = (read_i2c_register(_deviceAddr, PCF2127_STATUSREG) >> PCF2127_OSF_BIT_NUM);
+  return OSFcache;
+}
+boolean RTC_PCF2127::lostPowerCache(void) {
+  return OSFcache;
+}
 /**************************************************************************/
 /*!
     @brief  Check Seconds register  to see if clock valide've run adjust() yet (setting the date/time and battery switchover mode)
@@ -1571,16 +1595,26 @@ boolean RTC_PCF2127::begin(uint8_t address) {
 */
 /**************************************************************************/
 RTC_PCF2127::ErrorNum RTC_PCF2127::initialized(void) {
+  RTC_PCF2127::ErrorNum retError= NO_ERROR;
+
+
   Wire.beginTransmission(_deviceAddr);
-  Wire._I2C_WRITE((byte)PCF2127_REGISTER::Seconds);
+  Wire._I2C_WRITE(PCF2127_STATUSREG);
   Wire.endTransmission();
 
   if (1 ==Wire.requestFrom(_deviceAddr, 1)) {
     uint8_t ss = Wire._I2C_READ();
-    return ((ss & 0x80) ? CLOCK_INTEGRITY_FAIL : NO_ERROR );
+    retError = ((ss & PCF2127_OSF_BIT_MASK) ? CLOCK_INTEGRITY_FAIL : NO_ERROR );
+    if (NO_ERROR!=retError) {
+      //Attempt a reset
+      //uint8_t statreg = read_i2c_register(_deviceAddr, PCF2127_STATUSREG);
+      ss &= 0x7F; // OSF bit reset attempt
+      write_i2c_register(_deviceAddr, PCF2127_STATUSREG, ss);
+    }
   } else {
-    return I2C_ACCESS_FAIL;
+    retError = I2C_ACCESS_FAIL;
   }
+  return retError;
 }
 /**************************************************************************/
 /*!
@@ -1609,18 +1643,18 @@ RTC_PCF2127::ErrorNum RTC_PCF2127::init(void) {
   Wire.endTransmission();
   
   // check for errors
+
   Wire.beginTransmission(_deviceAddr);
-  Wire._I2C_WRITE((byte)PCF2127_REGISTER::Seconds);
+  Wire._I2C_WRITE(PCF2127_STATUSREG);
   Wire.endTransmission();
 
-  //Compact read - tbd how to deal with PCF2127 failure
-  Wire.requestFrom(_deviceAddr, 7);
-  uint8_t ss = bcd2bin(Wire._I2C_READ() );
-  if (SECS_OSF_MASK & ss) 
-  {
-    retError = CLOCK_INTEGRITY_FAIL;
+  if (1 ==Wire.requestFrom(_deviceAddr, 1)) {
+    uint8_t ss_bcd = Wire._I2C_READ();
+    OSFcache = OSFupdate(ss_bcd);
+    retError= (OSFcache ? CLOCK_INTEGRITY_FAIL : NO_ERROR );
+  } else {
+    retError = I2C_ACCESS_FAIL;
   }
-
   return retError;
 }
 
@@ -1661,11 +1695,12 @@ DateTime RTC_PCF2127::now() {
   Wire.endTransmission();
 
   //Compact read - tbd how to deal with PCF2127 failure
-  Wire.requestFrom(_deviceAddr, 7);
-  uint8_t ss = bcd2bin(Wire._I2C_READ() );
+  #define PCF2127_NUM_TIME_REGS 7
+  Wire.requestFrom(_deviceAddr, PCF2127_NUM_TIME_REGS);
+  uint8_t ss_bcd = Wire._I2C_READ();
 
-  OSF = SECS_OSF_MASK & ss;
-  ss &= ~SECS_OSF_MASK;
+  OSFcache = OSFupdate(ss_bcd);
+  uint8_t ss = bcd2bin(~PCF2127_OSF_BIT_MASK && ss_bcd );
   uint8_t mm = bcd2bin(Wire._I2C_READ());
   uint8_t hh = bcd2bin(Wire._I2C_READ());
   uint8_t d = bcd2bin(Wire._I2C_READ());
